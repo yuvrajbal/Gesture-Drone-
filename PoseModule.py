@@ -17,6 +17,7 @@ class poseDetector():
         self.smooth_seg= smooth_segmentation
         self.detectionCon = detectionCon
         self.trackCon = trackCon
+        self.person_id = None
 
         #Intialize mediapipe drawing class
         self.mpDraw = mp.solutions.drawing_utils
@@ -46,7 +47,14 @@ class poseDetector():
         imageRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         # Perform the Pose Detection.
+        #if self.person_id is not None:
         self.results = self.pose.process(imageRGB)
+        #else:
+            #self.results = self.pose.process(imageRGB)
+
+        #    if self.results.pose_landmarks:
+        #        self.person_id = 0
+
 
         # Retrieve the height and width of the input image.
         height, width, _ = img.shape
@@ -118,15 +126,15 @@ class poseDetector():
         if left_elbow_angle > 140 and left_elbow_angle < 195 and right_elbow_angle > 140 and right_elbow_angle < 195:
             #check shoulder angles are 90
             if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label = "Forward"
+                label = "Flip Forward"
             if left_shoulder_angle > 155 and left_shoulder_angle < 210 and right_shoulder_angle > 155 and right_shoulder_angle< 210:
-                label = "Backward"
+                label = "Flip Backward"
         if left_elbow_angle > 70 and left_elbow_angle < 120 and right_elbow_angle > 140 and right_elbow_angle < 195:
             if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label= "Right"
+                label= "Flip Right"
         if right_elbow_angle > 70 and right_elbow_angle < 120 and left_elbow_angle > 140 and left_elbow_angle < 195:
             if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label = "Left"
+                label = "Flip Left"
         if right_shoulder_angle> 0 and right_shoulder_angle< 30 and left_shoulder_angle>0 and left_shoulder_angle<30:
             if left_elbow_angle > 70 and left_elbow_angle<120 and right_elbow_angle>70 and right_elbow_angle<120:
                 label = "Stop"
@@ -135,16 +143,29 @@ class poseDetector():
         color = (0,255,255)
         cv2.putText(img,label,(10,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
 
-        if display:
-            cv2.putText(img, f'Left Elbow Angle: {int(left_elbow_angle)}', (10, 60), cv2.FONT_HERSHEY_PLAIN, 1, color,
-                        1)
-            cv2.putText(img, f'Right Elbow Angle: {int(right_elbow_angle)}', (10, 80), cv2.FONT_HERSHEY_PLAIN, 1, color,
-                        1)
-            cv2.putText(img, f'Left Shoulder Angle: {int(left_shoulder_angle)}', (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                        color, 1)
-            cv2.putText(img, f'Right Shoulder Angle: {int(right_shoulder_angle)}', (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
-                        color, 1)
-        else:
-            return img,label
+        # if display:
+        #     cv2.putText(img, f'Left Elbow Angle: {int(left_elbow_angle)}', (10, 60), cv2.FONT_HERSHEY_PLAIN, 1, color,
+        #                 1)
+        #     cv2.putText(img, f'Right Elbow Angle: {int(right_elbow_angle)}', (10, 80), cv2.FONT_HERSHEY_PLAIN, 1, color,
+        #                 1)
+        #     cv2.putText(img, f'Left Shoulder Angle: {int(left_shoulder_angle)}', (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+        #                 color, 1)
+        #     cv2.putText(img, f'Right Shoulder Angle: {int(right_shoulder_angle)}', (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
+        #                 color, 1)
+        #else:
+        return img,label
+
+    def findLandmark(self,landmarks, img):
+        lm_nose = landmarks[self.mpPose.PoseLandmark.NOSE.value]
 
 
+        color = (255, 255, 255)
+        #cv2.putText(img, str(lm_nose), (10, 100), cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
+        return lm_nose
+
+    def calculate_width(self,landmarks,img):
+        lm_right_shoulder = landmarks[self.mpPose.PoseLandmark.LEFT_SHOULDER.value]
+        lm_left_shoulder = landmarks[self.mpPose.PoseLandmark.RIGHT_SHOULDER.value]
+
+        distance_bw_lf_right = lm_right_shoulder[0] - lm_left_shoulder[0]
+        return distance_bw_lf_right
