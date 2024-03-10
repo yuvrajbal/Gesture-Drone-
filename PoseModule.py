@@ -3,6 +3,7 @@ import mediapipe as mp
 import time
 import math
 import matplotlib.pyplot as plt
+import json
 
 class poseDetector():
 
@@ -27,6 +28,8 @@ class poseDetector():
 
         #Set up the Pose function
         self.pose = self.mpPose.Pose(self.mode,self.complexity, self.smooth,self.enable_seg,self.smooth_seg,self.detectionCon, self.trackCon)
+        
+    
     def detectPose(self, img, pose, display=True):
         '''
         This function performs pose detection on an image.
@@ -107,7 +110,6 @@ class poseDetector():
         return angle
     def classifyPose(self, landmarks, img, display= False):
         label = 'Unknown Gesture'
-        color = (255,0,0)
 
         left_elbow_angle= self.calculateAngle(landmarks[self.mpPose.PoseLandmark.LEFT_SHOULDER.value],
                                          landmarks[self.mpPose.PoseLandmark.LEFT_ELBOW.value],
@@ -139,26 +141,15 @@ class poseDetector():
             if left_elbow_angle > 70 and left_elbow_angle<120 and right_elbow_angle>70 and right_elbow_angle<120:
                 label = "Stop"
 
-
         color = (0,255,255)
         cv2.putText(img,label,(10,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
-
-        # if display:
-        #     cv2.putText(img, f'Left Elbow Angle: {int(left_elbow_angle)}', (10, 60), cv2.FONT_HERSHEY_PLAIN, 1, color,
-        #                 1)
-        #     cv2.putText(img, f'Right Elbow Angle: {int(right_elbow_angle)}', (10, 80), cv2.FONT_HERSHEY_PLAIN, 1, color,
-        #                 1)
-        #     cv2.putText(img, f'Left Shoulder Angle: {int(left_shoulder_angle)}', (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-        #                 color, 1)
-        #     cv2.putText(img, f'Right Shoulder Angle: {int(right_shoulder_angle)}', (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
-        #                 color, 1)
-        #else:
+    
         return img,label
 
-    def findLandmark(self,landmarks, img):
+
+        
+    def findNoseLandmark(self,landmarks, img):
         lm_nose = landmarks[self.mpPose.PoseLandmark.NOSE.value]
-
-
         color = (255, 255, 255)
         #cv2.putText(img, str(lm_nose), (10, 100), cv2.FONT_HERSHEY_PLAIN, 2, color, 2)
         return lm_nose

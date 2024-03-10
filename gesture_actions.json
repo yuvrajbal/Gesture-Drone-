@@ -1,0 +1,8 @@
+{
+  "Unknown Gesture":"No action",
+  "Flip Forward": "action_for_flip_forward",
+  "Flip Backward": "action_for_flip_backward",
+  "Flip Right": "action_for_flip_right",
+  "Flip Left": "action_for_flip_left",
+  "Stop": "action_for_stop"
+}
