@@ -124,25 +124,65 @@ class poseDetector():
                                              landmarks[self.mpPose.PoseLandmark.RIGHT_SHOULDER.value],
                                              landmarks[self.mpPose.PoseLandmark.RIGHT_ELBOW])
 
-        #CHECK IF BOTH elbows ARE STRAIGHT
+        # print("left Elbow Angle",left_elbow_angle)
+        # print("Right Elbow Angle",right_elbow_angle)
+        # print("left Shoulder Angle",left_shoulder_angle)
+        # print("Right Shoulder Angle",right_shoulder_angle)
+
+        # CHECK IF BOTH elbows ARE STRAIGHT
+        # if left_elbow_angle > 140 and left_elbow_angle < 195 and right_elbow_angle > 140 and right_elbow_angle < 195:
+        #     #check shoulder angles are 90
+        #     if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
+        #         label = "Flip Forward"
+        #     if left_shoulder_angle > 155 and left_shoulder_angle < 210 and right_shoulder_angle > 155 and right_shoulder_angle< 210:
+        #         label = "Flip Backward"
+        # if left_elbow_angle > 70 and left_elbow_angle < 120 and right_elbow_angle > 140 and right_elbow_angle < 195:
+        #     if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
+        #         label= "Flip Right"
+        # if right_elbow_angle > 70 and right_elbow_angle < 120 and left_elbow_angle > 140 and left_elbow_angle < 195:
+        #     if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
+        #         label = "Flip Left"
+        # if right_shoulder_angle> 0 and right_shoulder_angle< 30 and left_shoulder_angle>0 and left_shoulder_angle<30:
+        #     if left_elbow_angle > 70 and left_elbow_angle<120 and right_elbow_angle>70 and right_elbow_angle<120:
+        #         label = "Stop"
+
         if left_elbow_angle > 140 and left_elbow_angle < 195 and right_elbow_angle > 140 and right_elbow_angle < 195:
             #check shoulder angles are 90
-            if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label = "Flip Forward"
-            if left_shoulder_angle > 155 and left_shoulder_angle < 210 and right_shoulder_angle > 155 and right_shoulder_angle< 210:
-                label = "Flip Backward"
-        if left_elbow_angle > 70 and left_elbow_angle < 120 and right_elbow_angle > 140 and right_elbow_angle < 195:
-            if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label= "Flip Right"
-        if right_elbow_angle > 70 and right_elbow_angle < 120 and left_elbow_angle > 140 and left_elbow_angle < 195:
-            if left_shoulder_angle > 70 and left_shoulder_angle < 120 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
-                label = "Flip Left"
-        if right_shoulder_angle> 0 and right_shoulder_angle< 30 and left_shoulder_angle>0 and left_shoulder_angle<30:
-            if left_elbow_angle > 70 and left_elbow_angle<120 and right_elbow_angle>70 and right_elbow_angle<120:
+            if left_shoulder_angle > 150 and left_shoulder_angle < 180 and right_shoulder_angle > 150 and right_shoulder_angle < 180:
                 label = "Stop"
+            if left_shoulder_angle > 60 and left_shoulder_angle < 90 and right_shoulder_angle > 60 and right_shoulder_angle < 90:
+                label = "Flip"
+        if left_elbow_angle > 0 and left_elbow_angle < 90 and left_shoulder_angle > 70 and left_shoulder_angle < 120:
+            if right_elbow_angle > 170 and right_shoulder_angle<25:
+                label= "Forward"
+        if left_elbow_angle > 90 and left_elbow_angle < 160 and left_shoulder_angle > 70 and left_shoulder_angle < 120:
+            if right_elbow_angle > 170 and right_shoulder_angle<25:
+                label= "Backward"
+        if right_elbow_angle > 0 and right_elbow_angle < 90 and right_shoulder_angle > 70 and right_shoulder_angle < 120:
+            if left_elbow_angle > 170 and left_shoulder_angle<25:
+                label= "Left"
+        if right_elbow_angle > 90 and right_elbow_angle < 160 and right_shoulder_angle> 70 and right_shoulder_angle< 120:
+            if left_elbow_angle > 170 and left_shoulder_angle<25:
+                label= "Right"
+        if left_shoulder_angle> 0 and left_shoulder_angle< 40:
+            if left_elbow_angle>70 and left_elbow_angle<150 and right_elbow_angle>280 and right_elbow_angle<320:
+                label = "Clicking Picture"
+        # if left_shoulder_angle<50 and right_shoulder_angle<50:
+        #     if left_elbow_angle<360 and left_elbow_angle > 300 and right_elbow_angle<360 and right_elbow_angle > 300:
+        #         label = "Cross_on_shoulders"
+        if right_shoulder_angle> 0 and right_shoulder_angle< 40:
+            if right_elbow_angle>70 and right_elbow_angle<150 and left_elbow_angle>280 and left_elbow_angle<320:
+                label = "Cross_on_shoulders"        
+        
 
+        
+        
+        
+        angle_label = str(right_elbow_angle)
         color = (0,255,255)
         cv2.putText(img,label,(10,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
+        cv2.putText(img,angle_label,(450,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
+        
     
         return img,label
 
