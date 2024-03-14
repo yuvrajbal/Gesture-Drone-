@@ -2,22 +2,30 @@ import cv2
 import time
 from simple_pid import PID
 import PoseModule as pm
-# from djitellopy import Tello
+from djitellopy import Tello
 import json
 import time
 
-# tello = Tello()
-# tello.connect()
-# print(tello.get_battery())
-# tello.streamon()
-# tello.takeoff()
-# tello.send_rc_control(0,0,20,0)
-# time.sleep(2.2)
+
 # Setting up Camera and window sie
-with open('gesture_actions.json') as f:
+with open('gesture_actions1.json') as f:
   gesture_actions = json.load(f)
-cap = cv2.VideoCapture(0)
+
+
+DroneMode = False
+if DroneMode:
+  tello = Tello()
+  tello.connect()
+  print("battery=",tello.get_battery())
+  tello.streamon()
+  tello.takeoff()
+  tello.send_rc_control(0,0,10,0)
+  time.sleep(2.2)
+else:
+  cap = cv2.VideoCapture(0)
+
 cv2.namedWindow('Gesture Detection', cv2.WINDOW_NORMAL)
+
 pTime = 0
 x_ref = int(640/2)
 y_ref = int(0.25*460)
@@ -30,6 +38,7 @@ axis_speed = {}
 pid_yaw = PID(0.25,0,0,setpoint=0,output_limits=(-100,100))
 pid_throttle = PID(0.4,0,0,setpoint=0,output_limits=(-80,100))
 fb =0
+gesture_mode = [0,0]
 fixed_distance_bool = False
 last_gesture_time = 0
 gesture_timeout = 2 
@@ -137,36 +146,41 @@ def identifyAction(label):
   if gesture_key:
       action = gesture_actions[gesture_key]
 
-  # print(action)
+  print(action)
   return action
 
-def performAction(action):
+def performAction(action, mode_bool):
   global fixed_distance_bool,last_gesture_time,number
   current_time = time.time()
   if action == "Come_forward":
     if timeDifference(last_time_executed[0],0):
+      gesture_mode[0] = 10
       # tello.move_forward(10)
       print("Forward 10cm")
       return True
   elif action == "Go_backward":
     if timeDifference(last_time_executed[1],1):
-      #  tello.move_back(10)
+      # tello.move_back(10)
+      gesture_mode[0]=-10
       print("Backward 10cm")
       return True
   elif action == "move_right":
     if timeDifference(last_time_executed[2],2):
-      #  tello.move_right(10)
+      gesture_mode[1]=10
+      # tello.move_right(10)
       print("Right 10 cm")
       return True
   elif action == "move_left":
     if timeDifference(last_time_executed[3],3):
-      #  tello.move_left(10)
+      # tello.move_left(10)
+      gesture_mode[1]=-10
       print("Left 10 cm")
       return True
   elif action == "action_for_stop":
     if timeDifference(last_time_executed[4],4):
-      #  tello.emergency()
-      print("Emergency Landing") 
+      if mode_bool:
+        tello.land()
+      print(" Landing") 
       return True
   elif action == "Click picture after 2s":
     # Implement click picture
@@ -177,7 +191,8 @@ def performAction(action):
     return True
   elif action == "Performing a front Flip":
     if timeDifference(last_time_executed[6],6):
-      # tello.flip_forward()
+      if mode_bool:
+        tello.flip_forward()
       print("Doing a front Flip")
       return True
   elif action == "Entering Fixed Distance Mode":
@@ -198,9 +213,11 @@ def performAction(action):
      return False
    
 
-while True:
-  success, img = cap.read()
-  # img = tello.get_frame_read().frame
+
+while DroneMode:
+
+  
+  img = tello.get_frame_read().frame
 
   output_image, landmarks = detector.detectPose(img,detector.pose,display=False)
 
@@ -216,7 +233,53 @@ while True:
     action = identifyAction(gesture_str)
     # print("action performed in main loop", action)
     # Perform that action
-    Performed = performAction(action)
+    Performed = performAction(action,DroneMode)
+    
+    # Check whether fixed distance mode is on
+    if fixed_distance_bool:
+      #Find the width of shoulder
+      shoulderWidth = detector.calculate_width(landmarks,output_image)
+      calculate_Forward_backward(shoulderWidth)
+      printOnWindow(output_image, x[0],x[1], shoulderWidth,fixed_distance_bool)
+      tello.send_rc_control(0,fb, axis_speed["throttle"],axis_speed["yaw"])
+
+    else:
+      tello.send_rc_control(gesture_mode[1],gesture_mode[0], axis_speed["throttle"],axis_speed["yaw"])
+      # print("Not in fixed distance mode")
+      printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
+      gesture_mode[0]=0
+      gesture_mode[1]=0
+
+  
+  cv2.imshow("Gesture Detection", output_image)
+  k = cv2.waitKey(1)
+  if (k==27):
+    print("landing")
+    tello.emergency()
+    # img.release()
+    break
+
+while not DroneMode:
+  success, img = cap.read()
+  # if not success:
+  #   print("print fasiled to open camera")
+  # print("framed read successfully ")
+  output_image, landmarks = detector.detectPose(img,detector.pose,display=False)
+
+  if landmarks:
+    _, gesture_str = detector.classifyPose(landmarks,output_image,True)
+    
+    #Find coordinate of nose to calculate yaw and throttle
+    x = detector.findNoseLandmark(landmarks, output_image)
+    calculate_yaw(x[0])
+    calculate_throttle(x[1])
+ 
+    # Find the action user has set from the JSON data
+    action = identifyAction(gesture_str)
+    
+    # Perform that action
+
+    Performed = performAction(action,DroneMode)
     
     # Check whether fixed distance mode is on 
     if fixed_distance_bool:
@@ -224,22 +287,19 @@ while True:
       shoulderWidth = detector.calculate_width(landmarks,output_image)
       calculate_Forward_backward(shoulderWidth)
       printOnWindow(output_image, x[0],x[1], shoulderWidth,fixed_distance_bool)
-      # tello.send_rc_control(0,fb, axis_speed["throttle"],axis_speed["yaw"])  
-
+        
     else:
-      # tello.send_rc_control(0,0, axis_speed["throttle"],axis_speed["yaw"])  
-      # print("Not in fixed distance mode")  
       printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
-    
+      gesture_mode[0]=0
+      gesture_mode[1]=0
 
-   
+  
   cv2.imshow("Gesture Detection", output_image)
   k = cv2.waitKey(1)
   if (k==27):
     print("landing")
-    # tello.land()
+    
     break
-
 
 cap.release()
 cv2.destroyWindow("Gesture Detection")
