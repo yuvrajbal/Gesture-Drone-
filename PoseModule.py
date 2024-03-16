@@ -109,7 +109,7 @@ class poseDetector():
         # Return the calculated angle.
         return angle
     def classifyPose(self, landmarks, img, display= False):
-        label = 'Unknown Gesture'
+        label = 'Unknown'
 
         left_elbow_angle= self.calculateAngle(landmarks[self.mpPose.PoseLandmark.LEFT_SHOULDER.value],
                                          landmarks[self.mpPose.PoseLandmark.LEFT_ELBOW.value],
@@ -170,7 +170,7 @@ class poseDetector():
         
         # ON SHOULDERS FOR FIX DISTANCE
         if left_shoulder_angle<30 and right_shoulder_angle<30:
-            if left_elbow_angle<340 and left_elbow_angle > 300 and right_elbow_angle<340 and right_elbow_angle > 300:
+            if left_elbow_angle<360 and left_elbow_angle > 300 and right_elbow_angle<360 and right_elbow_angle > 300:
                 label = "Cross_on_shoulders"
         # if right_shoulder_angle> 0 and right_shoulder_angle< 40:
         #     if right_elbow_angle>70 and right_elbow_angle<150 and left_elbow_angle>280 and left_elbow_angle<320:
@@ -179,8 +179,9 @@ class poseDetector():
         
         angle_label = str(right_elbow_angle)
         color = (0,255,255)
-        cv2.putText(img,label,(10,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
-        cv2.putText(img,angle_label,(450,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
+        cv2.putText(img,str("Gesture"),(10,30), cv2.FONT_HERSHEY_PLAIN,1,color,1)
+        cv2.putText(img,label,(100,30), cv2.FONT_HERSHEY_PLAIN,1,color,1)
+        # cv2.putText(img,angle_label,(450,30), cv2.FONT_HERSHEY_PLAIN,2,color,2)
         
     
         return img,label

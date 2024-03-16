@@ -6,11 +6,26 @@ from djitellopy import Tello
 import json
 import time
 
-
-# Setting up Camera and window sie
 with open('gesture_actions1.json') as f:
   gesture_actions = json.load(f)
 
+# Drone Parameters
+axis_speed = {}
+pid_yaw = PID(0.25,0,0,setpoint=0,output_limits=(-100,100))
+pid_throttle = PID(0.4,0,0,setpoint=0,output_limits=(-80,100))
+fb =0
+gesture_mode = [0,0]
+fixed_distance_bool = False
+last_gesture_time = 0
+gesture_timeout = 2 
+number = 0
+last_time_executed = [0]*len(gesture_actions)
+# Forward/backward threshold
+shoulderW_threshold= [170,220]
+LRFB_speed = 20
+pTime = 0
+x_ref = int(640/2)
+y_ref = int(0.25*460)
 
 DroneMode = False
 if DroneMode:
@@ -26,27 +41,8 @@ else:
 
 cv2.namedWindow('Gesture Detection', cv2.WINDOW_NORMAL)
 
-pTime = 0
-x_ref = int(640/2)
-y_ref = int(0.25*460)
-
 #Create instance of poseDetector class
 detector = pm.poseDetector()
-
-# Drone Parameters
-axis_speed = {}
-pid_yaw = PID(0.25,0,0,setpoint=0,output_limits=(-100,100))
-pid_throttle = PID(0.4,0,0,setpoint=0,output_limits=(-80,100))
-fb =0
-gesture_mode = [0,0]
-fixed_distance_bool = False
-last_gesture_time = 0
-gesture_timeout = 2 
-number = 0
-last_time_executed = [0]*len(gesture_actions)
-# F/w threshold
-shoulderW_threshold= [170,220]
-LRFB_speed = 20
 
 def calculate_yaw(x_nose):
   x_off = int(x_nose - x_ref)
@@ -69,75 +65,138 @@ def calculate_Forward_backward(shoulderWidth):
 
 def timeDifference(prev_executed_time,index):
   current_time = time.time()
+  global last_time_executed
   if current_time - prev_executed_time >= gesture_timeout:
     last_time_executed[index] = current_time
     return True
   else:
     False
-    
+
+def capture_image(img,delay):
+  start_time = time.time()
+  while True:
+    current_time = time.time()
+    if current_time - start_time >= delay:
+      cv2.imwrite("Picture.png",img)
+      break
+    # cv2.waitKey(1)
+
+
 def printOnWindow(Img , Nose_x, Nose_y, shoulder_width,Distance_fixed):
+  
   if Distance_fixed:
     
-    cv2.putText(Img, str("x,y coordinates"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
-                    (255, 0, 0), 1)
-    cv2.putText(Img,str(Nose_x) , (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.putText(Img, "," ,(40, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
-    cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
-    cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
-                (0, 255, 255), 1)
-    cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
-                (0, 255, 255), 1)
-    cv2.putText(Img, str(axis_speed["throttle"]), (50 ,140), cv2.FONT_HERSHEY_PLAIN, 1,
-                (0, 255, 255), 1)
+    # cv2.putText(Img, str("x,y coordinates"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
+    #                 (255, 0, 0), 1)
+    # cv2.putText(Img,str(Nose_x) , (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 0, 0), 1)
+    # cv2.putText(Img, "," ,(40, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 0, 0), 1)
+    # cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 0, 0), 1)
+    # cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
+    # cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
+    # cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (0, 255, 255), 1)
+    # cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (0, 255, 255), 1)
+    # cv2.putText(Img, str(axis_speed["throttle"]), (50 ,140), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (0, 255, 255), 1)
     
-    cv2.putText(Img, str("Fix Dis mode:"), (10, 160), cv2.FONT_HERSHEY_PLAIN, 1,
-                (200, 10, 255), 1)
-    cv2.putText(Img, str(fixed_distance_bool), (130, 160), cv2.FONT_HERSHEY_PLAIN, 1,
-                (200, 10, 255), 1)
-    cv2.putText(Img, str("shoulderWidth"), (10, 180), cv2.FONT_HERSHEY_PLAIN, 1,
-                    (255, 0, 255), 1)
-    cv2.putText(Img, str(shoulder_width), (140, 180), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 255), 1)
-    cv2.putText(Img, str("Fw/Bw:"), (10, 200), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 200, 200), 1)
-    cv2.putText(Img, str(fb), (100, 200), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 200, 200), 1)
+    cv2.putText(Img, str("Fixed Distance mode:"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
+                (0, 255, 255), 1)
+    cv2.putText(Img, str("On") if fixed_distance_bool else str("Off"), (200, 80), cv2.FONT_HERSHEY_PLAIN, 1,
+                (57, 255, 20), 1)
+    if fb>0:
+      cv2.putText(Img, str("Moving Close"), (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                    (0, 255, 255), 1)
+    if fb<0:
+      cv2.putText(Img, str("Moving Away") , (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                    (0, 255, 255), 1)
+    # cv2.putText(Img, str("shoulderWidth"), (10, 180), cv2.FONT_HERSHEY_PLAIN, 1,
+    #                 (255, 0, 255), 1)
+    # cv2.putText(Img, str(shoulder_width), (140, 180), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 0, 255), 1)
+    # cv2.putText(Img, str("Fw/Bw:"), (10, 200), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 200, 200), 1)
+    # cv2.putText(Img, str(fb), (100, 200), cv2.FONT_HERSHEY_PLAIN, 1,
+    #             (255, 200, 200), 1)
+    # if gesture_mode[0] > 0:
+    #   cv2.putText(Img, str("Forward:"), (10, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    #   cv2.putText(Img, str(gesture_mode[0]), (100, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    # elif gesture_mode[0] <0:
+    #   cv2.putText(Img, str("Backward:"), (10, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    #   cv2.putText(Img, str(-gesture_mode[0]), (100, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    # if gesture_mode[1] > 0:
+    #   cv2.putText(Img, str("Left"), (10, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    #   cv2.putText(Img, str(-gesture_mode[1]), (100, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    # elif gesture_mode[1] <0:
+    #   cv2.putText(Img, str("Right"), (10, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    #   cv2.putText(Img, str(-gesture_mode[1]), (100, 220), cv2.FONT_HERSHEY_PLAIN, 1,
+    #               (0, 255, 255), 1)
+    
     
   else:
-    cv2.putText(Img, str("x,y coordinates"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
-                    (255, 0, 0), 1)
-    cv2.putText(Img,str(Nose_x) , (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.putText(Img, "," ,(40, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 0), 1)
-    cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
-    cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
-    cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
+    cv2.putText(Img, str("Fixed Distance mode:"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
                 (0, 255, 255), 1)
-    cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
-                (0, 255, 255), 1)
-    cv2.putText(Img, str(axis_speed["throttle"]), (50 ,140), cv2.FONT_HERSHEY_PLAIN, 1,
-                (0, 255, 255), 1)
+    cv2.putText(Img, str("On") if fixed_distance_bool else str("Off"), (200, 80), cv2.FONT_HERSHEY_PLAIN, 1,
+                (57, 255, 20), 1)
+    if gesture_mode[0] > 0:
+      cv2.putText(Img, str("Forward:"), (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+      cv2.putText(Img, str(gesture_mode[0]), (100, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+    elif gesture_mode[0] <0:
+      cv2.putText(Img, str("Backward:"), (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+      cv2.putText(Img, str(-gesture_mode[0]), (100, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+    if gesture_mode[1] > 0:
+      cv2.putText(Img, str("Left "), (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+      cv2.putText(Img, str(gesture_mode[1]), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+    elif gesture_mode[1] <0:
+      cv2.putText(Img, str("Right "), (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+      cv2.putText(Img, str(-gesture_mode[1]), (70, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+                  (0, 255, 255), 1)
+  #   cv2.putText(Img, str("x,y coordinates"), (10, 80), cv2.FONT_HERSHEY_PLAIN, 1,
+  #                   (255, 0, 0), 1)
+  #   cv2.putText(Img,str(Nose_x) , (10, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 0, 0), 1)
+  #   cv2.putText(Img, "," ,(40, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 0, 0), 1)
+  #   cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 0, 0), 1)
+  #   cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
+  #   cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
+  #   cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (0, 255, 255), 1)
+  #   cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (0, 255, 255), 1)
+  #   cv2.putText(Img, str(axis_speed["throttle"]), (50 ,140), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (0, 255, 255), 1)
     
-    cv2.putText(Img, str("Fix Dis mode:"), (10, 160), cv2.FONT_HERSHEY_PLAIN, 1,
-                (200, 10, 255), 1)
-    cv2.putText(Img, str(fixed_distance_bool), (150, 160), cv2.FONT_HERSHEY_PLAIN, 1,
-                (200, 10, 255), 1)
-    cv2.putText(Img, str("shoulderWidth"), (10, 180), cv2.FONT_HERSHEY_PLAIN, 1,
-                    (255, 0, 255), 1)
-    cv2.putText(Img, str(shoulder_width), (140, 180), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 0, 255), 1)
-    cv2.putText(Img, str("Fw/Bw:"), (10, 200), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 200, 200), 1)
-    cv2.putText(Img, str(fb), (100, 200), cv2.FONT_HERSHEY_PLAIN, 1,
-                (255, 200, 200), 1)
+  #   cv2.putText(Img, str("Fix Dis mode:"), (10, 160), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (200, 10, 255), 1)
+  #   cv2.putText(Img, str(fixed_distance_bool), (150, 160), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (200, 10, 255), 1)
+  #   cv2.putText(Img, str("shoulderWidth"), (10, 180), cv2.FONT_HERSHEY_PLAIN, 1,
+  #                   (255, 0, 255), 1)
+  #   cv2.putText(Img, str(shoulder_width), (140, 180), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 0, 255), 1)
+  #   cv2.putText(Img, str("Fw/Bw:"), (10, 200), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 200, 200), 1)
+  #   cv2.putText(Img, str(fb), (100, 200), cv2.FONT_HERSHEY_PLAIN, 1,
+  #               (255, 200, 200), 1)
 
   
 def identifyAction(label):
@@ -151,7 +210,7 @@ def identifyAction(label):
   return action
 
 def performAction(action, mode_bool):
-  global fixed_distance_bool,last_gesture_time,number
+  global fixed_distance_bool,number
   current_time = time.time()
   
   if action == "Come_forward":
@@ -168,14 +227,14 @@ def performAction(action, mode_bool):
       return True
   elif action == "move_right":
     if timeDifference(last_time_executed[2],2):
-      gesture_mode[1]=LRFB_speed
+      gesture_mode[1]=-LRFB_speed
       # tello.move_right(10)
       print("Right 10 cm")
       return True
   elif action == "move_left":
     if timeDifference(last_time_executed[3],3):
       # tello.move_left(10)
-      gesture_mode[1]=-LRFB_speed
+      gesture_mode[1]=+LRFB_speed
       print("Left 10 cm")
       return True
   elif action == "action_for_stop":
@@ -186,8 +245,9 @@ def performAction(action, mode_bool):
       return True
   elif action == "Click picture after 2s":
     # Implement click picture
+
     if timeDifference(last_time_executed[5],5):
-      cv2.imwrite("picture.png",img)
+      cv2.imwrite("Picture.png",img)
       number+=1
       print("pciture number",number)
     
@@ -200,11 +260,7 @@ def performAction(action, mode_bool):
         print("Doing a front Flip")
         return True
   elif action == "Entering Fixed Distance Mode":
-    # Implement enter fixed distance mode
-    # if current_time - last_gesture_time >= gesture_timeout:
-    #   fixed_distance_bool = not fixed_distance_bool  
-    #   last_gesture_time = current_time
-    # print("Entered performaction fun")
+    
     if timeDifference(last_time_executed[7],7):
       fixed_distance_bool = not fixed_distance_bool 
       if fixed_distance_bool:
@@ -253,7 +309,10 @@ while DroneMode:
       tello.send_rc_control(gesture_mode[1],gesture_mode[0], axis_speed["throttle"],axis_speed["yaw"])
       # print("Not in fixed distance mode")
       printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
-      
+
+  else:
+    #Explore to detect person
+    tello.send_rc_control(0,0,0,20)
   cv2.imshow("Gesture Detection", output_image)
   k = cv2.waitKey(1)
   if (k==27):
@@ -292,8 +351,8 @@ while not DroneMode:
       printOnWindow(output_image, x[0],x[1], shoulderWidth,fixed_distance_bool)
         
     else:
-      printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
-      print("Parameters passed into send_rc_control l/r and f/b=",gesture_mode[1],gesture_mode[0])
+      printOnWindow(output_image, x[0],x[1], 0, fixed_distance_bool)
+      # print("Parameters passed into send_rc_control l/r and f/b=",gesture_mode[1],gesture_mode[0])
       
 
   
