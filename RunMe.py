@@ -20,7 +20,7 @@ if DroneMode:
   tello.streamon()
   tello.takeoff()
   tello.send_rc_control(0,0,10,0)
-  time.sleep(2.2)
+  time.sleep(1)
 else:
   cap = cv2.VideoCapture(0)
 
@@ -45,7 +45,8 @@ gesture_timeout = 2
 number = 0
 last_time_executed = [0]*len(gesture_actions)
 # F/w threshold
-shoulderW_threshold= [150,200]
+shoulderW_threshold= [170,220]
+LRFB_speed = 20
 
 def calculate_yaw(x_nose):
   x_off = int(x_nose - x_ref)
@@ -146,34 +147,35 @@ def identifyAction(label):
   if gesture_key:
       action = gesture_actions[gesture_key]
 
-  print(action)
+  # print(action)
   return action
 
 def performAction(action, mode_bool):
   global fixed_distance_bool,last_gesture_time,number
   current_time = time.time()
+  
   if action == "Come_forward":
     if timeDifference(last_time_executed[0],0):
-      gesture_mode[0] = 10
+      gesture_mode[0] = LRFB_speed
       # tello.move_forward(10)
       print("Forward 10cm")
       return True
   elif action == "Go_backward":
     if timeDifference(last_time_executed[1],1):
       # tello.move_back(10)
-      gesture_mode[0]=-10
+      gesture_mode[0]=-LRFB_speed
       print("Backward 10cm")
       return True
   elif action == "move_right":
     if timeDifference(last_time_executed[2],2):
-      gesture_mode[1]=10
+      gesture_mode[1]=LRFB_speed
       # tello.move_right(10)
       print("Right 10 cm")
       return True
   elif action == "move_left":
     if timeDifference(last_time_executed[3],3):
       # tello.move_left(10)
-      gesture_mode[1]=-10
+      gesture_mode[1]=-LRFB_speed
       print("Left 10 cm")
       return True
   elif action == "action_for_stop":
@@ -188,13 +190,15 @@ def performAction(action, mode_bool):
       cv2.imwrite("picture.png",img)
       number+=1
       print("pciture number",number)
+    
     return True
+  
   elif action == "Performing a front Flip":
     if timeDifference(last_time_executed[6],6):
       if mode_bool:
         tello.flip_forward()
-      print("Doing a front Flip")
-      return True
+        print("Doing a front Flip")
+        return True
   elif action == "Entering Fixed Distance Mode":
     # Implement enter fixed distance mode
     # if current_time - last_gesture_time >= gesture_timeout:
@@ -207,16 +211,18 @@ def performAction(action, mode_bool):
           print("Entering fixed distance mode")
       else:
           print("Exiting fixed distance mode")
-    return True
+    
+      return True
   
   else:
-     return False
+    gesture_mode[0]=0
+    gesture_mode[1]=0
+    return False
+  
    
-
 
 while DroneMode:
 
-  
   img = tello.get_frame_read().frame
 
   output_image, landmarks = detector.detectPose(img,detector.pose,display=False)
@@ -234,7 +240,7 @@ while DroneMode:
     # print("action performed in main loop", action)
     # Perform that action
     Performed = performAction(action,DroneMode)
-    
+
     # Check whether fixed distance mode is on
     if fixed_distance_bool:
       #Find the width of shoulder
@@ -247,10 +253,7 @@ while DroneMode:
       tello.send_rc_control(gesture_mode[1],gesture_mode[0], axis_speed["throttle"],axis_speed["yaw"])
       # print("Not in fixed distance mode")
       printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
-      gesture_mode[0]=0
-      gesture_mode[1]=0
-
-  
+      
   cv2.imshow("Gesture Detection", output_image)
   k = cv2.waitKey(1)
   if (k==27):
@@ -290,8 +293,8 @@ while not DroneMode:
         
     else:
       printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
-      gesture_mode[0]=0
-      gesture_mode[1]=0
+      print("Parameters passed into send_rc_control l/r and f/b=",gesture_mode[1],gesture_mode[0])
+      
 
   
   cv2.imshow("Gesture Detection", output_image)

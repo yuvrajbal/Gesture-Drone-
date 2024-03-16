@@ -167,15 +167,14 @@ class poseDetector():
         if left_shoulder_angle> 0 and left_shoulder_angle< 40:
             if left_elbow_angle>70 and left_elbow_angle<150 and right_elbow_angle>280 and right_elbow_angle<320:
                 label = "Clicking Picture"
-        # if left_shoulder_angle<50 and right_shoulder_angle<50:
-        #     if left_elbow_angle<360 and left_elbow_angle > 300 and right_elbow_angle<360 and right_elbow_angle > 300:
-        #         label = "Cross_on_shoulders"
-        if right_shoulder_angle> 0 and right_shoulder_angle< 40:
-            if right_elbow_angle>70 and right_elbow_angle<150 and left_elbow_angle>280 and left_elbow_angle<320:
-                label = "Cross_on_shoulders"        
         
-
-        
+        # ON SHOULDERS FOR FIX DISTANCE
+        if left_shoulder_angle<30 and right_shoulder_angle<30:
+            if left_elbow_angle<340 and left_elbow_angle > 300 and right_elbow_angle<340 and right_elbow_angle > 300:
+                label = "Cross_on_shoulders"
+        # if right_shoulder_angle> 0 and right_shoulder_angle< 40:
+        #     if right_elbow_angle>70 and right_elbow_angle<150 and left_elbow_angle>280 and left_elbow_angle<320:
+        #         label = "Cross_on_shoulders"        
         
         
         angle_label = str(right_elbow_angle)
