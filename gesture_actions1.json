@@ -1,0 +1,11 @@
+{
+  "Unknown":"No action",
+  "Forward": "Come_forward",
+  "Backward": "Go_backward",
+  "Right": "move_right",
+  "Left": "move_left",
+  "Stop": "action_for_stop",
+  "Clicking Picture": "Click picture after 2s",
+  "Flip": "Performing a front Flip",
+  "Cross_on_shoulders": "Entering Fixed Distance Mode"
+}
