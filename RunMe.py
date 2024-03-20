@@ -5,10 +5,25 @@ import PoseModule as pm
 from djitellopy import Tello
 import json
 import time
+import pygame
+import threading
 
 with open('gesture_actions1.json') as f:
   gesture_actions = json.load(f)
 
+pygame.mixer.init()
+forward_sound = pygame.mixer.Sound("Audio/Forward.wav")
+backward_sound = pygame.mixer.Sound("Audio/Backwards.wav")
+right_sound = pygame.mixer.Sound("Audio/Right.wav")
+left_sound = pygame.mixer.Sound("Audio/Left.wav")
+landing_sound = pygame.mixer.Sound("Audio/Land.wav")
+picture_sound = pygame.mixer.Sound("Audio/Capturing_in_2.wav")
+flip_sound = pygame.mixer.Sound("Audio/Flip.wav")
+Enter_fixed_distance_mode_sound = pygame.mixer.Sound("Audio/EnteredFDM.wav")
+Exit_fixed_distance_mode_sound = pygame.mixer.Sound("Audio/ExitedFDM.wav")
+
+# Mode
+DroneMode = False
 # Drone Parameters
 axis_speed = {}
 pid_yaw = PID(0.25,0,0,setpoint=0,output_limits=(-100,100))
@@ -27,21 +42,19 @@ pTime = 0
 x_ref = int(640/2)
 y_ref = int(0.25*460)
 
-DroneMode = False
 if DroneMode:
   tello = Tello()
   tello.connect()
   print("battery=",tello.get_battery())
   tello.streamon()
   tello.takeoff()
-  tello.send_rc_control(0,0,10,0)
-  time.sleep(1)
+  tello.send_rc_control(0,0,20,0)
+  time.sleep(2)
 else:
   cap = cv2.VideoCapture(0)
 
 cv2.namedWindow('Gesture Detection', cv2.WINDOW_NORMAL)
 
-#Create instance of poseDetector class
 detector = pm.poseDetector()
 
 def calculate_yaw(x_nose):
@@ -72,16 +85,6 @@ def timeDifference(prev_executed_time,index):
   else:
     False
 
-def capture_image(img,delay):
-  start_time = time.time()
-  while True:
-    current_time = time.time()
-    if current_time - start_time >= delay:
-      cv2.imwrite("Picture.png",img)
-      break
-    # cv2.waitKey(1)
-
-
 def printOnWindow(Img , Nose_x, Nose_y, shoulder_width,Distance_fixed):
   
   if Distance_fixed:
@@ -94,10 +97,10 @@ def printOnWindow(Img , Nose_x, Nose_y, shoulder_width,Distance_fixed):
     #             (255, 0, 0), 1)
     # cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
     #             (255, 0, 0), 1)
-    # cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
-    # cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
+    cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
+    cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
     # cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
-    #             (0, 255, 255), 1)
+                # (0, 255, 255), 1)
     # cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
     #             (0, 255, 255), 1)
     # cv2.putText(Img, str(axis_speed["throttle"]), (50 ,140), cv2.FONT_HERSHEY_PLAIN, 1,
@@ -176,8 +179,8 @@ def printOnWindow(Img , Nose_x, Nose_y, shoulder_width,Distance_fixed):
   #               (255, 0, 0), 1)
   #   cv2.putText(Img, str(Nose_y), (50, 100), cv2.FONT_HERSHEY_PLAIN, 1,
   #               (255, 0, 0), 1)
-  #   cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
-  #   cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
+    cv2.circle(Img, (x_ref, y_ref), 15, (250, 150, 0), 1, cv2.LINE_AA)
+    cv2.arrowedLine(Img, (x_ref, y_ref), (Nose_x,Nose_y), (0,255, 255 ), 3)
   #   cv2.putText(Img, str("Yaw and throttle"), (10, 120), cv2.FONT_HERSHEY_PLAIN, 1,
   #               (0, 255, 255), 1)
   #   cv2.putText(Img, str(axis_speed["yaw"]), (10, 140), cv2.FONT_HERSHEY_PLAIN, 1,
@@ -198,7 +201,6 @@ def printOnWindow(Img , Nose_x, Nose_y, shoulder_width,Distance_fixed):
   #   cv2.putText(Img, str(fb), (100, 200), cv2.FONT_HERSHEY_PLAIN, 1,
   #               (255, 200, 200), 1)
 
-  
 def identifyAction(label):
   # print("Inside identify action", label)
   if label in gesture_actions:
@@ -212,60 +214,67 @@ def identifyAction(label):
 def performAction(action, mode_bool):
   global fixed_distance_bool,number
   current_time = time.time()
-  
-  if action == "Come_forward":
+  print("fixed distance bool", fixed_distance_bool)
+  # if not fixed_distance_bool:
+  if action == "Come_forward" and not fixed_distance_bool:
     if timeDifference(last_time_executed[0],0):
+      forward_sound.play()
       gesture_mode[0] = LRFB_speed
-      # tello.move_forward(10)
-      print("Forward 10cm")
+      # print("Forward 10cm")
       return True
-  elif action == "Go_backward":
+  elif action == "Go_backward" and not fixed_distance_bool:
     if timeDifference(last_time_executed[1],1):
-      # tello.move_back(10)
+      backward_sound.play()
       gesture_mode[0]=-LRFB_speed
-      print("Backward 10cm")
+      # print("Backward 10cm")
       return True
-  elif action == "move_right":
+  elif action == "move_right" and not fixed_distance_bool:
     if timeDifference(last_time_executed[2],2):
+      right_sound.play()
       gesture_mode[1]=-LRFB_speed
-      # tello.move_right(10)
-      print("Right 10 cm")
+      # print("Right 10 cm")
       return True
-  elif action == "move_left":
+  elif action == "move_left" and not fixed_distance_bool:
     if timeDifference(last_time_executed[3],3):
-      # tello.move_left(10)
+      left_sound.play()
       gesture_mode[1]=+LRFB_speed
-      print("Left 10 cm")
+      # print("Left 10 cm")
       return True
   elif action == "action_for_stop":
     if timeDifference(last_time_executed[4],4):
+      landing_sound.play()
       if mode_bool:
+        # landing_sound.play()
         tello.land()
-      print(" Landing") 
+      # print(" Landing") 
       return True
   elif action == "Click picture after 2s":
     # Implement click picture
-
     if timeDifference(last_time_executed[5],5):
-      cv2.imwrite("Picture.png",img)
-      number+=1
-      print("pciture number",number)
+      picture_sound.play()
+      capture_event.set()
+      cv2.imwrite("InstantPicture.png",img)
+      # number+=1
+      # print("picture number",number)
     
     return True
   
   elif action == "Performing a front Flip":
     if timeDifference(last_time_executed[6],6):
+      flip_sound.play()
       if mode_bool:
         tello.flip_forward()
         print("Doing a front Flip")
         return True
+
   elif action == "Entering Fixed Distance Mode":
-    
     if timeDifference(last_time_executed[7],7):
       fixed_distance_bool = not fixed_distance_bool 
       if fixed_distance_bool:
+          Enter_fixed_distance_mode_sound.play()
           print("Entering fixed distance mode")
       else:
+          Exit_fixed_distance_mode_sound.play()
           print("Exiting fixed distance mode")
     
       return True
@@ -275,12 +284,27 @@ def performAction(action, mode_bool):
     gesture_mode[1]=0
     return False
   
-   
+def clickPicture():
+  time.sleep(3)
+  # ret,frame =cap.read()
+  frame = tello.get_frame_read().frame
+  frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+  cv2.imwrite("DelayImage3sec.png",frame)
+
+# click from camera
+def clickPictureCam():
+  time.sleep(3)
+  ret,frame =cap.read()
+  # frame = tello.get_frame_read().frame
+  # frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+  cv2.imwrite("DelayImage3Camera.png",frame)
+
+capture_event = threading.Event()  
 
 while DroneMode:
 
   img = tello.get_frame_read().frame
-
+  img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
   output_image, landmarks = detector.detectPose(img,detector.pose,display=False)
 
   if landmarks:
@@ -296,6 +320,10 @@ while DroneMode:
     # print("action performed in main loop", action)
     # Perform that action
     Performed = performAction(action,DroneMode)
+    if capture_event.is_set():
+      capture_thread = threading.Thread(target=clickPicture)
+      capture_thread.start()
+      capture_event.clear()
 
     # Check whether fixed distance mode is on
     if fixed_distance_bool:
@@ -311,8 +339,8 @@ while DroneMode:
       printOnWindow(output_image, x[0],x[1], 0,fixed_distance_bool)
 
   else:
-    #Explore to detect person
-    tello.send_rc_control(0,0,0,20)
+    # Explore to detect person
+    tello.send_rc_control(0,0,2,10)
   cv2.imshow("Gesture Detection", output_image)
   k = cv2.waitKey(1)
   if (k==27):
@@ -323,9 +351,7 @@ while DroneMode:
 
 while not DroneMode:
   success, img = cap.read()
-  # if not success:
-  #   print("print fasiled to open camera")
-  # print("framed read successfully ")
+  
   output_image, landmarks = detector.detectPose(img,detector.pose,display=False)
 
   if landmarks:
@@ -338,11 +364,15 @@ while not DroneMode:
  
     # Find the action user has set from the JSON data
     action = identifyAction(gesture_str)
-    
+    # print(action)
     # Perform that action
-
     Performed = performAction(action,DroneMode)
-    
+    if capture_event.is_set():
+      capture_thread = threading.Thread(target=clickPictureCam)
+      capture_thread.start()
+      capture_event.clear()
+
+      
     # Check whether fixed distance mode is on 
     if fixed_distance_bool:
       #Find the width of shoulder
